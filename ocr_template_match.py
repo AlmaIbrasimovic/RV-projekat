@@ -10,10 +10,8 @@ import cv2
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--image", required=True,
-	help="path to input image")
-ap.add_argument("-r", "--reference", required=True,
-	help="path to reference OCR-A image")
+ap.add_argument("-i", "--image", required=True,help="path to input image")
+ap.add_argument("-r", "--reference", required=True,help="path to reference OCR-A image")
 args = vars(ap.parse_args())
 
 # define a dictionary that maps the first digit of a credit card
@@ -37,8 +35,7 @@ ref = cv2.threshold(ref, 10, 255, cv2.THRESH_BINARY_INV)[1]
 # find contours in the OCR-A image (i.e,. the outlines of the digits)
 # sort them from left to right, and initialize a dictionary to map
 # digit name to the ROI
-refCnts = cv2.findContours(ref.copy(), cv2.RETR_EXTERNAL,
-	cv2.CHAIN_APPROX_SIMPLE)
+refCnts = cv2.findContours(ref.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
 refCnts = imutils.grab_contours(refCnts)
 refCnts = contours.sort_contours(refCnts, method="left-to-right")[0]
 digits = {}
@@ -63,6 +60,7 @@ sqKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 image = cv2.imread(args["image"])
 image = imutils.resize(image, width=300)
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+cv2.imshow("Slika prije", image)
 
 # apply a tophat (whitehat) morphological operator to find light
 # regions against a dark background (i.e., the credit card numbers)
@@ -70,8 +68,7 @@ tophat = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, rectKernel)
 
 # compute the Scharr gradient of the tophat image, then scale
 # the rest back into the range [0, 255]
-gradX = cv2.Sobel(tophat, ddepth=cv2.CV_32F, dx=1, dy=0,
-	ksize=-1)
+gradX = cv2.Sobel(tophat, ddepth=cv2.CV_32F, dx=1, dy=0,ksize=-1)
 gradX = np.absolute(gradX)
 (minVal, maxVal) = (np.min(gradX), np.max(gradX))
 gradX = (255 * ((gradX - minVal) / (maxVal - minVal)))
@@ -81,8 +78,7 @@ gradX = gradX.astype("uint8")
 # cloes gaps in between credit card number digits, then apply
 # Otsu's thresholding method to binarize the image
 gradX = cv2.morphologyEx(gradX, cv2.MORPH_CLOSE, rectKernel)
-thresh = cv2.threshold(gradX, 0, 255,
-	cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+thresh = cv2.threshold(gradX, 0, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
 
 # apply a second closing operation to the binary image, again
 # to help close gaps between credit card number regions
@@ -90,8 +86,7 @@ thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, sqKernel)
 
 # find contours in the thresholded image, then initialize the
 # list of digit locations
-cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,
-	cv2.CHAIN_APPROX_SIMPLE)
+cnts = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
 cnts = imutils.grab_contours(cnts)
 locs = []
 
@@ -101,21 +96,23 @@ for (i, c) in enumerate(cnts):
 	# bounding box coordinates to derive the aspect ratio
 	(x, y, w, h) = cv2.boundingRect(c)
 	ar = w / float(h)
-
 	# since credit cards used a fixed size fonts with 4 groups
 	# of 4 digits, we can prune potential contours based on the
 	# aspect ratio
-	if ar > 2.5 and ar < 4.0:
+	if ar > 2.5 and ar < 4.1:
 		# contours can further be pruned on minimum/maximum width
 		# and height
-		if (w > 40 and w < 55) and (h > 10 and h < 20):
+		if (w > 35 and w < 65) and (h > 10 and h < 20):
 			# append the bounding box region of the digits group
 			# to our locations list
 			locs.append((x, y, w, h))
 
 # sort the digit locations from left-to-right, then initialize the
 # list of classified digits
+while len(locs) > 4:
+	locs.pop(0)
 locs = sorted(locs, key=lambda x:x[0])
+#print(len(locs))
 output = []
 
 # loop over the 4 groupings of 4 digits
@@ -127,16 +124,13 @@ for (i, (gX, gY, gW, gH)) in enumerate(locs):
 	# then apply thresholding to segment the digits from the
 	# background of the credit card
 	group = gray[gY - 5:gY + gH + 5, gX - 5:gX + gW + 5]
-	group = cv2.threshold(group, 0, 255,
-		cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
+	group = cv2.threshold(group, 0, 255,cv2.THRESH_BINARY | cv2.THRESH_OTSU)[1]
 
 	# detect the contours of each individual digit in the group,
 	# then sort the digit contours from left to right
-	digitCnts = cv2.findContours(group.copy(), cv2.RETR_EXTERNAL,
-		cv2.CHAIN_APPROX_SIMPLE)
+	digitCnts = cv2.findContours(group.copy(), cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)
 	digitCnts = imutils.grab_contours(digitCnts)
-	digitCnts = contours.sort_contours(digitCnts,
-		method="left-to-right")[0]
+	digitCnts = contours.sort_contours(digitCnts,method="left-to-right")[0]
 
 	# loop over the digit contours
 	for c in digitCnts:
@@ -154,20 +148,20 @@ for (i, (gX, gY, gW, gH)) in enumerate(locs):
 		for (digit, digitROI) in digits.items():
 			# apply correlation-based template matching, take the
 			# score, and update the scores list
-			result = cv2.matchTemplate(roi, digitROI,
-				cv2.TM_CCOEFF)
+			result = cv2.matchTemplate(roi, digitROI,cv2.TM_CCOEFF)
 			(_, score, _, _) = cv2.minMaxLoc(result)
 			scores.append(score)
+			#print("Number - score: ",digit,score)
 
 		# the classification for the digit ROI will be the reference
 		# digit name with the *largest* template matching score
-		groupOutput.append(str(np.argmax(scores)))
+		#print(np.argmax(scores)%10)
+
+		groupOutput.append(str(np.argmax(scores)%10))
 
 	# draw the digit classifications around the group
-	cv2.rectangle(image, (gX - 5, gY - 5),
-		(gX + gW + 5, gY + gH + 5), (0, 0, 255), 2)
-	cv2.putText(image, "".join(groupOutput), (gX, gY - 15),
-		cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 2)
+	cv2.rectangle(image, (gX - 5, gY - 5),(gX + gW + 5, gY + gH + 5), (0, 0, 255), 2)
+	cv2.putText(image, "".join(groupOutput), (gX, gY - 15),cv2.FONT_HERSHEY_SIMPLEX, 0.65, (0, 0, 255), 2)
 
 	# update the output digits list
 	output.extend(groupOutput)
