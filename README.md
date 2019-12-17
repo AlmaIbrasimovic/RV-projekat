@@ -1,2 +1,2 @@
 # RV-projekat
-Pokreće se kroz terminal sa python ocr_tempplate_match.py
+Pokreće se kroz terminal sa python ocr_template_match.py
