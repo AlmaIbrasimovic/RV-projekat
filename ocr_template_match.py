@@ -7,11 +7,61 @@ import numpy as np
 import argparse
 import imutils
 import cv2
+import sys
+from PyQt5.QtWidgets import QWidget, QDesktopWidget, QApplication, QPushButton, QFileDialog, QLabel, QHBoxLayout
+from PyQt5.QtCore import pyqtSlot, QObject, Qt
+from PyQt5.QtGui import QIcon, QPixmap, QPalette
+
+
+class App(QWidget):
+	def __init__(self): #Konstruktor
+		super().__init__()
+		self.initUI()
+		self.putanja = ""
+
+	def getPutanja(self):
+		return self.putanja
+
+	def setPutanja(self, putanja):
+		self.putanja = putanja
+
+	def initUI(self):
+		self.setWindowTitle('Ucitavanje slika')
+		self.setFixedSize(1000,1000)
+		# Postavke za button A
+		button_A = QPushButton('Ucitaj sliku kartice',self)
+		button_A.setToolTip('Dugme za ucitavanje slike kreditne kartice!')
+		button_A.move(10,10)
+		button_A.setFixedSize(190,50)
+		button_A.clicked.connect(self.ucitajSliku) # Povezivanje klika sa funkcijom
+		self.center() 
+		self.show()
+
+	@pyqtSlot() # Funkcija za ucitavanje slike
+	def ucitajSliku(self):
+		a = self.kreirajDijalog()
+		return a
+		
+		
+	@pyqtSlot()
+	def ucitajReferencu(self):
+		self.kreirajDijalog()
+		print('Refernca')
+
+	def center(self): # Da bi pozicionirali ne sredinu ekrana
+		qr = self.frameGeometry()
+		cp = QDesktopWidget().availableGeometry().center()
+		qr.moveCenter(cp)
+		self.move(qr.topLeft())
+	
+	def kreirajDijalog(self):
+		options = QFileDialog.Options()
+		hbox = QHBoxLayout(self)
+		files = QFileDialog.getOpenFileName(self, "Ucitaj sliku", "", "JPG (*.jpg);;PNG (*.png)")
+		self.setPutanja(files[0])
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--image", required=True,help="path to input image")
-ap.add_argument("-r", "--reference", required=True,help="path to reference OCR-A image")
 args = vars(ap.parse_args())
 
 # define a dictionary that maps the first digit of a credit card
@@ -28,7 +78,7 @@ FIRST_NUMBER = {
 # and threshold it, such that the digits appear as *white* on a
 # *black* background
 # and invert it, such that the digits appear as *white* on a *black*
-ref = cv2.imread(args["reference"])
+ref = cv2.imread("finalna.png")
 ref = cv2.cvtColor(ref, cv2.COLOR_BGR2GRAY)
 ref = cv2.threshold(ref, 10, 255, cv2.THRESH_BINARY_INV)[1]
 
@@ -57,10 +107,14 @@ rectKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (9, 3))
 sqKernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
 
 # load the input image, resize it, and convert it to grayscale
-image = cv2.imread(args["image"])
+app = QApplication(sys.argv)
+w = QWidget()
+program = App()
+app.setStyle("Fusion")
+app.exec_()
+image = cv2.imread(program.getPutanja())
 image = imutils.resize(image, width=300)
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-cv2.imshow("Slika prije", image)
 
 # apply a tophat (whitehat) morphological operator to find light
 # regions against a dark background (i.e., the credit card numbers)
