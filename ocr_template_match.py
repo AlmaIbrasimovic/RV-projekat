@@ -26,13 +26,22 @@ class App(QWidget):
 		self.putanja = putanja
 
 	def initUI(self):
-		self.setWindowTitle('Ucitavanje slika')
-		self.setFixedSize(1000,1000)
+		self.setWindowTitle('Učitavanje slika')
+		self.setFixedSize(500,400)
+
 		# Postavke za button A
-		button_A = QPushButton('Ucitaj sliku kartice',self)
+		button_A = QPushButton('Učitaj sliku kartice',self)
 		button_A.setToolTip('Dugme za ucitavanje slike kreditne kartice!')
-		button_A.move(10,10)
+		button_A.move(145,100)
 		button_A.setFixedSize(190,50)
+
+		# Postavke za button B
+		button_B = QPushButton('Ugasi aplikaciju',self)
+		button_B.setToolTip('Dugme za gašenje aplikacije!')
+		button_B.move(145,200)
+		button_B.setFixedSize(190,50)
+		button_B.clicked.connect(self.close)
+	
 		button_A.clicked.connect(self.ucitajSliku) # Povezivanje klika sa funkcijom
 		self.center() 
 		self.show()
@@ -42,12 +51,6 @@ class App(QWidget):
 		a = self.kreirajDijalog()
 		return a
 		
-		
-	@pyqtSlot()
-	def ucitajReferencu(self):
-		self.kreirajDijalog()
-		print('Refernca')
-
 	def center(self): # Da bi pozicionirali ne sredinu ekrana
 		qr = self.frameGeometry()
 		cp = QDesktopWidget().availableGeometry().center()
@@ -57,8 +60,9 @@ class App(QWidget):
 	def kreirajDijalog(self):
 		options = QFileDialog.Options()
 		hbox = QHBoxLayout(self)
-		files = QFileDialog.getOpenFileName(self, "Ucitaj sliku", "", "JPG (*.jpg);;PNG (*.png)")
+		files = QFileDialog.getOpenFileName(self, "Učitaj sliku", "", "JPG (*.jpg);;PNG (*.png)")
 		self.setPutanja(files[0])
+		if files[0] : self.close() # Provjera da li se učitala slika
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -112,10 +116,10 @@ w = QWidget()
 program = App()
 app.setStyle("Fusion")
 app.exec_()
+
 image = cv2.imread(program.getPutanja())
 image = imutils.resize(image, width=300)
 gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-
 # apply a tophat (whitehat) morphological operator to find light
 # regions against a dark background (i.e., the credit card numbers)
 tophat = cv2.morphologyEx(gray, cv2.MORPH_TOPHAT, rectKernel)
